@@ -1,0 +1,142 @@
+var express = require('express');
+var router = express.Router();
+var users = require('../models/userModel')
+var sonModel = require('../models/songModel')
+var playlistModel = require('../models/playlistModel')
+var passport = require('passport')
+var localStrategy = require('passport-local')
+var multer = require('multer')+
+var id3 = require('node-id3')+
+var crypto = require('crypto')+
+const { Readable } = require('stream')+
+passport.use(new localStrategy(users.authenticate()))
+const mongoose = require('mongoose');
+const songModel = require('../models/songModel');+
+
+mongoose.connect('mongodb://0.0.0.0/spt-n15').then(() => {
+  console.log('connected to database')
+}).catch(err => {
+  console.log(err)
+})
+
+const conn = mongoose.connection
+
+var gfsBucket, gfsBucketPoster
+conn.once('open', () => {
+  gfsBucket = new mongoose.mongo.GridFSBucket(conn.db, {
+    bucketName: 'audio'
+  })
+  gfsBucketPoster = new mongoose.mongo.GridFSBucket(conn.db, {
+    bucketName: 'poster'
+  })
+})
+
+/* GET home page. */
+router.get('/', function (req, res, next) {
+  res.render('index', { title: 'Express' });
+});
+
+/* user authentication routes */
+
+router.post('/register', (req, res, next) => {
+  var newUser = {
+    //user data here
+    username: req.body.username,
+    email: req.body.email
+    //user data here
+  };
+  users
+    .register(newUser, req.body.password)
+    .then((result) => {
+      passport.authenticate('local')(req, res, () => {
+        //destination after user register
+        res.redirect('/');
+      });
+    })
+    .catch((err) => {
+      res.send(err);
+    });
+});
+
+router.get('/auth', (req, res, next) => {
+  res.render('register')
+})
+
+
+
+router.post(
+  '/login',
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/login',
+  }),
+  (req, res, next) => { }
+);
+
+router.get('/logout', (req, res, next) => {
+  if (req.isAuthenticated())
+    req.logout((err) => {
+      if (err) res.send(err);
+      else res.redirect('/');
+    });
+  else {
+    res.redirect('/');
+  }
+});
+
+function isloggedIn(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  else res.redirect('/login');
+}
+
+/* user authentication routes */
+
+
+
+const storage = multer.memoryStorage()
+const upload = multer({ storage: storage })
+router.post('/uploadMusic', upload.single('song'), async (req, res, next) => {
+
+  const randomName = crypto.randomBytes(20).toString('hex')
+
+  const songData = id3.read(req.file.buffer)
+
+  console.log(req.file)
+  Readable.from(req.file.buffer).pipe(gfsBucket.openUploadStream(randomName))
+  Readable.from(songData.image.imageBuffer).pipe(gfsBucketPoster.openUploadStream(randomName + 'poster'))
+
+
+  await songModel.create({
+    title: songData.title,
+    artist: songData.artist,
+    album: songData.album,
+    size: req.file.size,
+    poster: randomName + 'poster',
+    fileName: randomName
+  })
+
+
+  res.send('song uploaded')
+})
+
+
+module.exports = router;
+
+
+
+
+ create a form with action /uploadMusic enctype = multipart
+2. create post route /uploadMusic
+    install multer
+    setups memory storage
+    use upload.single in /upload route
+
+3. create  gfsbucket and gfsbucketPoster 
+
+4. create conn.once and setup gfsbucket and gfsbucketPoster
+
+5. user node-id3 to extract poster from song buffer
+
+6. use gfsbucket and gfsbucketPoster to upload music to database
+
+7. use song model to bind poster and music
