@@ -119,7 +119,10 @@ router.post("/register", async (req, res, next) => {
       res.send(err);
     });
 });
-
+/* route forupload poster to thire realtive songs  */
+router.get('/poster/:posterName',(req,res,next)=>{
+  gfsBucketPoster.openDownloadStreamByName(req.params.posterName).pipe(res)
+})
 router.post(
   "/login",
   passport.authenticate("local", {
@@ -159,8 +162,8 @@ const upload = multer({ storage: storage });
 /* upload music logic route */
 router.post(
   "/uploadMusic",
-  /*issLoggedIn,
-  isAdmine,*/
+  issLoggedIn,
+  isAdmine,
   upload.array("song"),
   async (req, res, next) => {
     await Promise.all(
