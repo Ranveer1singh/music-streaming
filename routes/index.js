@@ -26,6 +26,7 @@ const { Readable } = require("stream");
 /* database connectivity */
 const mongoose = require("mongoose");
 const { promises } = require("dns");
+const userModel = require("../Models/userModels");
 mongoose
   .connect("mongodb://0.0.0.0/sptf-n15")
   .then(() => {
@@ -47,9 +48,22 @@ conn.once("open", () => {
 });
 
 /* GET home page. */
-router.get("/", issLoggedIn, function (req, res, next) {
-  res.render("index", { title: "Express" });
-});
+router.get(
+  "/",
+  issLoggedIn , async function (req, res, next) {
+    const currentUser = await userModel.findOne({
+      _id: req.user._id
+    }).populate('playlist').populate({
+      path: 'playlist',
+      populate:{
+        path:'songs',
+        model:'song'
+      }
+    })
+    // res.render("index");
+    res.render("index", { currentUser });
+  }
+);
 
 /* login route */
 
@@ -60,8 +74,8 @@ router.get("/auth", (req, res, next) => {
 //   res.render('index')
 // })
 
-/*user authenticatin route */
-router.post("/register", (req, res, next) => {
+/*user authentication route */
+router.post("/register", async (req, res, next) => {
   var newUser = {
     username: req.body.username,
     email: req.body.email,
@@ -69,7 +83,35 @@ router.post("/register", (req, res, next) => {
   users
     .register(newUser, req.body.password)
     .then((result) => {
-      passport.authenticate("local")(req, res, () => {
+      passport.authenticate("local")(req, res, async () => {
+        const songs = await songModel.find();
+        const defaultPlaylist = await playlistModel.create({
+          name: req.body.username,
+          owner: req.user._id,
+          songs: songs.map((song) => song._id),
+        });
+        console.log(songs.map((song) => song._id));
+
+        const newUser = await userModel.findOne({
+          _id: req.user._id,
+        });
+        newUser.playlist.push(defaultPlaylist._id);
+
+        await newUser.save();
+        // const currentUser = await userModel
+        //   .findOne({
+        //     _id: req.user._id,
+        //   })
+        //   .populate("playlist")
+        //   .populate({
+        //     path: "playlist",
+        //     populate: {
+        //       path: "songs",
+        //       model: "song",
+        //     },
+        //   });
+
+        // console.log(JSON.stringify(currentUser));
         res.redirect("/");
       });
     })
@@ -82,7 +124,7 @@ router.post(
   "/login",
   passport.authenticate("local", {
     successRedirect: "/",
-    failureRedirect: "/login",
+    failureRedirect: "/auth",
   }),
   (req, res, next) => {}
 );
@@ -117,8 +159,8 @@ const upload = multer({ storage: storage });
 /* upload music logic route */
 router.post(
   "/uploadMusic",
-  issLoggedIn,
-  isAdmine,
+  /*issLoggedIn,
+  isAdmine,*/
   upload.array("song"),
   async (req, res, next) => {
     await Promise.all(
