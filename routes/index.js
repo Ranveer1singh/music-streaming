@@ -48,22 +48,22 @@ conn.once("open", () => {
 });
 
 /* GET home page. */
-router.get(
-  "/",
-  issLoggedIn , async function (req, res, next) {
-    const currentUser = await userModel.findOne({
-      _id: req.user._id
-    }).populate('playlist').populate({
-      path: 'playlist',
-      populate:{
-        path:'songs',
-        model:'song'
-      }
+router.get("/", issLoggedIn, async function (req, res, next) {
+  const currentUser = await userModel
+    .findOne({
+      _id: req.user._id,
     })
-    // res.render("index");
-    res.render("index", { currentUser });
-  }
-);
+    .populate("playlist")
+    .populate({
+      path: "playlist",
+      populate: {
+        path: "songs",
+        model: "song",
+      },
+    });
+  // res.render("index");
+  res.render("index", { currentUser });
+});
 
 /* login route */
 
@@ -119,10 +119,12 @@ router.post("/register", async (req, res, next) => {
       res.send(err);
     });
 });
+
 /* route forupload poster to thire realtive songs  */
-router.get('/poster/:posterName',(req,res,next)=>{
-  gfsBucketPoster.openDownloadStreamByName(req.params.posterName).pipe(res)
-})
+router.get("/poster/:posterName", (req, res, next) => {
+  gfsBucketPoster.openDownloadStreamByName(req.params.posterName).pipe(res);
+});
+
 router.post(
   "/login",
   passport.authenticate("local", {
@@ -196,5 +198,37 @@ router.post(
 /* upload music page route  */
 router.get("/uploadMusic", issLoggedIn, (req, res, next) => {
   res.render("uploadMusic");
+});
+
+// streaming music route
+router.get("/stream/:musicName", async (req, res, next) => {
+  const currentSong = await songModel.findOne({
+    fileName: req.params.musicName,
+  });
+  console.log(currentSong);
+  const stream = gfsBucket.openDownloadStreamByName(req.params.musicName);
+
+  res.set("content-type", "audio/mpeg");
+  res.set("content-length", currentSong.size + 1);
+  res.set(
+    "content-range",
+    `bytes 0-${currentSong.size - 1}/${currentSong.size}`
+  );
+  res.set("content-ranges", "byte");
+  res.status(206);
+
+  stream.pipe(res);
+});
+
+/* search route */
+router.get("/search", (req, res, next) => {
+  res.render("search");
+});
+
+router.post("/search", async (req, res, next) => {
+  const searchedMusic = await songModel.find({
+    title: {$regex:req.body.search}
+  })
+  res.json(searchedMusic);
 });
 module.exports = router;
