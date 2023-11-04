@@ -208,13 +208,13 @@ router.get("/stream/:musicName", async (req, res, next) => {
   console.log(currentSong);
   const stream = gfsBucket.openDownloadStreamByName(req.params.musicName);
 
-  res.set("content-type", "audio/mpeg");
-  res.set("content-length", currentSong.size + 1);
+  res.set("Content-Type", "audio/mpeg");
+  res.set("Content-Length", currentSong.size + 1);
   res.set(
-    "content-range",
+    "Content-Range",
     `bytes 0-${currentSong.size - 1}/${currentSong.size}`
   );
-  res.set("content-ranges", "byte");
+  res.set("Content-Ranges", "byte");
   res.status(206);
 
   stream.pipe(res);
@@ -225,10 +225,12 @@ router.get("/search", (req, res, next) => {
   res.render("search");
 });
 
-router.post("/search", async (req, res, next) => {
-  const searchedMusic = await songModel.find({
+router.post('/search', async(req,res,next)=>{
+  const MusicSearch = await songModel.find({
     title: {$regex:req.body.search}
   })
-  res.json(searchedMusic);
-});
+  res.json({
+    songs:MusicSearch
+  })
+})
 module.exports = router;

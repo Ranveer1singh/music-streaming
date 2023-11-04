@@ -93,3 +93,24 @@ a:hover {
 .playbtn > i {
   color: green;
 }
+.srch{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: 10px;
+}
+#srch{
+  padding: 5px 8px;
+  font-size: 18px;
+  border-radius: 1em;
+  background-color: #fff;
+}
+
+#srch:hover{
+  outline-color: royalblue;
+}
+audio{
+  position: absolute;
+  bottom:10% ;
+  left: 50%;
+}
